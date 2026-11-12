@@ -5,6 +5,7 @@ import Layout from './components/Layout';
 import Home from './pages/Home';
 import Play from './pages/Play';
 import Result from './pages/Result';
+import History from './pages/History';
 import QuestionBank from './pages/QuestionBank';
 import QuestionDetail from './pages/QuestionDetail';
 import NotFound from './pages/NotFound';
@@ -59,7 +60,7 @@ function App() {
         <Route index element={<Home playerName={playerName} setPlayerName={setPlayerName} history={history} />} />
         <Route path="play" element={<Play questions={questions} playerName={playerName} history={history} setHistory={setHistory} />} />
         <Route path="result" element={<Result />} />
-        <Route path="history" element={<h2>Lịch sử (Chưa hoàn thiện ở Bài 2)</h2>} />
+        <Route path="history" element={<History history={history} setHistory={setHistory} />} />
         <Route path="questions" element={<QuestionBank questions={questions} bookmarks={bookmarks} toggleBookmark={toggleBookmark} loading={loading} error={error} />} />
         <Route path="questions/:id" element={<QuestionDetail questions={questions} bookmarks={bookmarks} toggleBookmark={toggleBookmark} />} />
         <Route path="*" element={<NotFound />} />

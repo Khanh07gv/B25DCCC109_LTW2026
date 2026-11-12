@@ -7,6 +7,7 @@ import QuestionCard from '../components/QuestionCard';
 import AnswerButton from '../components/AnswerButton';
 import Timer from '../components/Timer';
 import ScoreInfo from '../components/ScoreInfo';
+import Supports from '../components/Supports';
 
 const Play = ({ questions, playerName, history, setHistory }) => {
     const navigate = useNavigate();
@@ -20,6 +21,45 @@ const Play = ({ questions, playerName, history, setHistory }) => {
     const [timeLeft, setTimeLeft] = useState(25);
     const [rounds, setRounds] = useState([]);
     const [selectedAnswer, setSelectedAnswer] = useState(null);
+
+    // Quyền trợ giúp
+    const [supports, setSupports] = useState({ preview: false, insurance: false, hint: false });
+    const [insuranceActive, setInsuranceActive] = useState(false);
+    const [previewActive, setPreviewActive] = useState(false);
+    const [hintActive, setHintActive] = useState(false);
+
+    // Tiêu đề tab trình duyệt
+    useEffect(() => {
+        if (status === 'betting') {
+            document.title = `Câu ${currentQIdx + 1}/12 - đặt cược`;
+        } else {
+            document.title = `Câu ${currentQIdx + 1}/12 - cược ${bet}`;
+        }
+        return () => { document.title = 'Đặt cược kiến thức'; };
+    }, [status, currentQIdx, bet]);
+
+    // Bắt phím tắt
+    useEffect(() => {
+        if (status !== 'betting') return;
+        const handleKey = (e) => {
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setBet(prev => {
+                    const maxAllowed = Math.min(500, score);
+                    const next = prev + 100;
+                    return next > maxAllowed ? maxAllowed - (maxAllowed % 100) : next;
+                });
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setBet(prev => Math.max(100, prev - 100));
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                handleBetSubmit();
+            }
+        };
+        window.addEventListener('keydown', handleKey);
+        return () => window.removeEventListener('keydown', handleKey);
+    }, [status, bet, score]);
 
     // Đồng hồ 25 giây
     useEffect(() => {
@@ -60,18 +100,32 @@ const Play = ({ questions, playerName, history, setHistory }) => {
             setBetError("");
             setStatus('answering');
             setTimeLeft(25);
+            setPreviewActive(false);
         }
+    };
+
+    const handleSupportUse = (type) => {
+        setSupports(prev => ({ ...prev, [type]: true }));
+        if (type === 'preview') setPreviewActive(true);
+        if (type === 'insurance') setInsuranceActive(true);
+        if (type === 'hint') setHintActive(true);
     };
 
     const processResult = (selected) => {
         setSelectedAnswer(selected);
         const isCorrect = selected === question.answer;
-        const change = calcChange(bet, question.level, isCorrect);
+        let change = calcChange(bet, question.level, isCorrect);
         
+        if (!isCorrect && insuranceActive) {
+            change = 0; // Bảo hiểm
+        }
+
         const scoreAfter = score + change;
         setScore(scoreAfter);
         setRounds(prev => [...prev, { id: question.id, bet, correct: isCorrect, change, scoreAfter }]);
         setStatus('revealed');
+        setInsuranceActive(false);
+        setHintActive(false);
     };
 
     const nextRound = () => {
@@ -107,6 +161,12 @@ const Play = ({ questions, playerName, history, setHistory }) => {
 
     return (
         <div>
+            <Supports 
+                supports={supports} 
+                status={status} 
+                handleSupportUse={handleSupportUse} 
+            />
+
             {status === 'betting' ? (
                 <BetPanel 
                     currentQIdx={currentQIdx} 
@@ -116,6 +176,7 @@ const Play = ({ questions, playerName, history, setHistory }) => {
                     setBet={setBet} 
                     handleBetSubmit={handleBetSubmit} 
                     betError={betError} 
+                    previewActive={previewActive}
                 />
             ) : (
                 <div>
@@ -138,11 +199,21 @@ const Play = ({ questions, playerName, history, setHistory }) => {
                         ))}
                     </QuestionCard>
                     
+                    {hintActive && (
+                        <div style={{ marginTop: '15px', padding: '10px', backgroundColor: '#fff3cd', borderLeft: '4px solid #ffc107', fontStyle: 'italic' }}>
+                            <strong>Gợi ý:</strong> {question.hint}
+                        </div>
+                    )}
+                    
                     {status === 'revealed' && (
                         <div style={{ marginTop: '20px', fontSize: '1.2em', fontWeight: 'bold' }}>
-                            <span style={{ color: rounds[rounds.length - 1].correct ? 'green' : 'red' }}>
-                                {rounds[rounds.length - 1].correct ? '+' : '-'}{Math.abs(rounds[rounds.length - 1].change)} điểm
-                            </span>
+                            {insuranceActive && rounds[rounds.length - 1].change === 0 ? (
+                                <span style={{ color: 'orange' }}>Bảo hiểm: không bị trừ điểm</span>
+                            ) : (
+                                <span style={{ color: rounds[rounds.length - 1].correct ? 'green' : 'red' }}>
+                                    {rounds[rounds.length - 1].correct ? '+' : '-'}{Math.abs(rounds[rounds.length - 1].change)} điểm
+                                </span>
+                            )}
                         </div>
                     )}
                 </div>
